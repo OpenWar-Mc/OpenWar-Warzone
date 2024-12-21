@@ -42,15 +42,15 @@ public class CTFHandler implements Listener {
                 player.getLocation().getZ(),
                 2774D, 56D, 3085D, 2759D, 46D, 3115D);
 
-        if (isInZone && !playersInZone.contains(player)) {
-            playersInZone.add(player);
-            manager.handlePlayerEnter(player, factionManager);
-            sendActionBar(player, "§aYou are on the capture zone !");
-        } else if (!isInZone && playersInZone.contains(player)) {
-            playersInZone.remove(player);
-            manager.handlePlayerExit(player, factionManager);
-            sendActionBar(player, "§cYou are leaving the capture zone !");
-        }
+        //if (isInZone && !playersInZone.contains(player)) {
+        //    playersInZone.add(player);
+        //    manager.handlePlayerEnter(player, factionManager);
+        //    sendActionBar(player, "§aYou are on the capture zone !");
+        //} else if (!isInZone && playersInZone.contains(player)) {
+        //    playersInZone.remove(player);
+        //    manager.handlePlayerExit(player, factionManager);
+        //    sendActionBar(player, "§cYou are leaving the capture zone !");
+        //}
     }
 
     private void startCaptureTask() {
@@ -61,10 +61,10 @@ public class CTFHandler implements Listener {
                     zone.resetCapture();
                     return;
                 }
-                //if (!canStartCapture()) {
-                //    zone.resetCapture();
-                //    return;
-                //}
+                if (!canStartCapture()) {
+                    zone.resetCapture();
+                    return;
+                }
                 manager.handleCaptureTick();
                 broadcastCaptureProgress();
             }
