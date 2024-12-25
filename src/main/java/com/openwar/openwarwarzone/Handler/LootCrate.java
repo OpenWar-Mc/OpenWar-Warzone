@@ -511,6 +511,8 @@ public class LootCrate implements Listener {
             throw new IllegalArgumentException("Loot list or crate cannot be null.");
         }
 
+        if (isSafe) System.out.println("createGUI - Initializing inventory for crate: " + crate.getFirst() + " and player: " + player.getName());
+
         Random random = new Random();
         String name = getDisName(crate.getFirst());
         Inventory gui = Bukkit.createInventory(null, crate.getThird(), "§8§l" + name);
@@ -528,6 +530,7 @@ public class LootCrate implements Listener {
                 slot = random.nextInt(crate.getThird());
             } while (occupiedSlots.contains(slot));
 
+            if (isSafe) System.out.println("createGUI - Assigning item to slot: " + slot);
             occupiedSlots.add(slot);
 
             ItemStack cobweb = new ItemStack(Material.BARRIER);
@@ -547,6 +550,7 @@ public class LootCrate implements Listener {
             public void onInventoryClick(InventoryClickEvent event) {
                 if (event.getInventory().equals(gui)) {
                     if (event.getCurrentItem() != null && event.getCurrentItem().getType() == Material.BARRIER) {
+                        if (isSafe) System.out.println("onInventoryClick - Clicked on BARRIER slot. Cancelling event.");
                         event.setCancelled(true);
                     }
                 }
@@ -555,6 +559,7 @@ public class LootCrate implements Listener {
             @EventHandler
             public void onInventoryClose(InventoryCloseEvent event) {
                 if (event.getPlayer().equals(player) && event.getInventory().equals(gui)) {
+                    if (isSafe) System.out.println("onInventoryClose - Inventory closed by player: " + player.getName());
                     BukkitTask task = activeTasks.get(player);
                     if (task != null) {
                         task.cancel();
@@ -567,6 +572,7 @@ public class LootCrate implements Listener {
             public void onInventoryOpen(InventoryOpenEvent event) {
                 if (event.getPlayer().equals(player) && event.getInventory().equals(gui)) {
                     if (!playersWithOpenInventory.contains(player)) {
+                        if (isSafe) System.out.println("onInventoryOpen - Inventory re-opened by player: " + player.getName());
                         int progress = playerProgress.getOrDefault(player, 0);
                         playersWithOpenInventory.add(player);
                         processNextItem(gui, loot, crate, occupiedSlots, progress, player, isSafe);
@@ -577,14 +583,17 @@ public class LootCrate implements Listener {
 
         return gui;
     }
+
     private void processNextItem(Inventory gui, List<SimpleEntry<ItemStack, Integer>> lootList, Tuple<String, Integer, Integer> crate, Set<Integer> occupiedSlots, int currentIndex, Player player, boolean isSafe) {
         if (currentIndex >= lootList.size()) {
+            if (isSafe) System.out.println("processNextItem - All items processed for player: " + player.getName());
             return;
         }
 
         SimpleEntry<ItemStack, Integer> entry = lootList.get(currentIndex);
         ItemStack item = entry.getKey();
         if (item == null || entry.getValue() <= 0) {
+            if (isSafe) System.out.println("processNextItem - Skipping invalid item at index: " + currentIndex);
             processNextItem(gui, lootList, crate, occupiedSlots, currentIndex + 1, player, isSafe);
             return;
         }
@@ -596,6 +605,8 @@ public class LootCrate implements Listener {
                 .filter(s -> gui.getItem(s) != null && gui.getItem(s).getType() == Material.BARRIER)
                 .findFirst()
                 .orElse(-1);
+
+        if (isSafe) System.out.println("processNextItem - Processing item at index: " + currentIndex + ", slot: " + slot);
 
         ItemStack cobweb = new ItemStack(Material.BARRIER);
         ItemMeta cobwebMeta = cobweb.getItemMeta();
@@ -615,11 +626,14 @@ public class LootCrate implements Listener {
             @Override
             public void run() {
                 if (!playersWithOpenInventory.contains(player)) {
+                    if (isSafe) System.out.println("processNextItem - Player no longer in inventory: " + player.getName());
                     return;
                 }
 
                 if (progress < maxProgress) {
                     progress++;
+
+                    if (isSafe) System.out.println("processNextItem - Updating progress bar for player: " + player.getName() + ", progress: " + progress + "/" + maxProgress);
 
                     ItemMeta meta = cobweb.getItemMeta();
                     StringBuilder progressBar = new StringBuilder("§8[§7");
@@ -641,6 +655,7 @@ public class LootCrate implements Listener {
 
                     Bukkit.getScheduler().runTaskLater(main, this, delay);
                 } else {
+                    if (isSafe) System.out.println("processNextItem - Replacing placeholder with final item for player: " + player.getName());
                     gui.setItem(finalSlot, finalItem);
                     Bukkit.getScheduler().runTaskLater(main, () -> {
                         playerProgress.put(player, currentIndex + 1);
@@ -652,6 +667,7 @@ public class LootCrate implements Listener {
 
         activeTasks.put(player, task);
     }
+
 
     private String getDisName(String type) {
         if (type.startsWith("MWC") || type.startsWith("HBM") || type.startsWith("CFM")) {
