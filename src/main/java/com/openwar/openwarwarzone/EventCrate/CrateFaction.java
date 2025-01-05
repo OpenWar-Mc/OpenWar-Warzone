@@ -1,5 +1,6 @@
 package com.openwar.openwarwarzone.EventCrate;
 
+
 import com.openwar.openwarcore.Utils.LevelSaveAndLoadBDD;
 import com.openwar.openwarlevels.level.PlayerLevel;
 import com.openwar.openwarwarzone.Main;
@@ -27,7 +28,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
-public class CrateEvent implements Listener{
+public class CrateFaction implements Listener{
     private final LevelSaveAndLoadBDD pl;
     private final Map<Location, Inventory> crateInventory;
     private Map<Location, Long> crateTimers = new HashMap<>();
@@ -41,7 +42,7 @@ public class CrateEvent implements Listener{
 
     List<Tuple<String, Integer, Integer>> crates = new ArrayList<>();
 
-    public CrateEvent(LevelSaveAndLoadBDD pl, Main main)  {
+    public CrateFaction(LevelSaveAndLoadBDD pl, Main main) {
         this.pl = pl;
         this.crateInventory = new HashMap<>();
         this.main = main;
@@ -49,15 +50,13 @@ public class CrateEvent implements Listener{
     }
 
     private void loadCrates() {
-        crates.add(new Tuple<>("HBM_CRATE_CAN", 15, 27));
-        crates.add(new Tuple<>("HBM_BLOCk_METEOR_TREASURE", 15, 9));
-        crates.add(new Tuple<>("MWC_DESK_RIGHT_ALT1", 15, 9));
+        crates.add(new Tuple<>("MWC_SUPPLY_DROP", 35, 27));
     }
 
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onLoot(PlayerInteractEvent event) {
-        if (event.getPlayer().getWorld().getName().equals("fire")) {
+        if (event.getPlayer().getWorld().getName().equals("faction")) {
             Block block = event.getClickedBlock();
             if (block != null) {
                 Location crateLoc = block.getLocation();
@@ -74,9 +73,6 @@ public class CrateEvent implements Listener{
                         long timeSinceLastOpen = currentTime - lastOpenTime;
                         if (timeSinceLastOpen >= cooldownTime) {
                             boolean isSafe = false;
-                            if (block.getType().name().equals("HBM_SAFE")) {
-                                isSafe = true;
-                            }
                             regenerateCrate(event, crateLoc, TriplesCouilles, isSafe);
                         } else {
                             if (crateInventory.containsKey(crateLoc)) {
@@ -91,6 +87,7 @@ public class CrateEvent implements Listener{
                                 }
 
                                 if (isEmpty) {
+                                    regenerateCrate(event, crateLoc, TriplesCouilles, false);
                                     event.getPlayer().spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("§cX §7Empty"));
                                 } else {
                                     event.getPlayer().openInventory(inv);
@@ -99,10 +96,7 @@ public class CrateEvent implements Listener{
                         }
                     } else {
                         boolean isSafe = false;
-                        if (block.getType().name().equals("HBM_SAFE")) {
-                            isSafe = true;
-                        }
-                        regenerateCrate(event, crateLoc, TriplesCouilles, isSafe);
+                        generateCrate(event, crateLoc, TriplesCouilles, isSafe);
                     }
                 }
             }
@@ -110,53 +104,42 @@ public class CrateEvent implements Listener{
     }
 
     private void regenerateCrate(PlayerInteractEvent event, Location crateLoc, Tuple<String, Integer, Integer> TriplesCouilles, boolean isSafe) {
+        Block block = crateLoc.getBlock();
+        block.setType(Material.AIR);
+    }
+    private void generateCrate(PlayerInteractEvent event, Location crateLoc, Tuple<String, Integer, Integer> TriplesCouilles, boolean isSafe) {
         List<AbstractMap.SimpleEntry<ItemStack, Integer>> loot = createLoot(TriplesCouilles);
         Inventory inv = createGUI(loot, TriplesCouilles, event.getPlayer(), isSafe);
         crateInventory.put(crateLoc, inv);
         crateTimers.put(crateLoc, System.currentTimeMillis());
         event.getPlayer().openInventory(inv);
     }
-
     private List<AbstractMap.SimpleEntry<ItemStack, Integer>> createLoot(Tuple<String, Integer, Integer> tuple) {
         String type = tuple.getFirst();
-        System.out.println("type: " + type);
         List<Tuple<String, Integer, Integer>> items = new ArrayList<>();
         List<AbstractMap.SimpleEntry<ItemStack, Integer>> finalItem;
         switch (type) {
-            case "HBM_BLOCk_METEOR_TREASURE":
-                items.add(new Tuple<>("HBM_CRYSTAL_STARMETAL", 1, 10));
-                items.add(new Tuple<>("HBM_CRYSTAL_PLUTONIUM", 1, 15));
-                items.add(new Tuple<>("HBM_CRYSTAL_RARE", 1, 20));
-                items.add(new Tuple<>("HBM_CRYSTAL_URANIUM", 2, 25));
-                items.add(new Tuple<>("HBM_CRYSTAL_TITANIUM", 2, 35));
-                items.add(new Tuple<>("HBM_CRYSTAL_IRON", 3, 50));
-                items.add(new Tuple<>("HBM_CRYSTAL_FLUORITE", 3, 60));
-                finalItem = generateLoot(items, 2);
-                return finalItem;
-
-            case "HBM_CRATE_CAN":
-                items.add(new Tuple<>("HBM_FUSION_CORE", 1, 5));
-                items.add(new Tuple<>("HBM_CANNED_RECURSION", 1, 50));
-                items.add(new Tuple<>("HBM_CANNED_BARK", 2, 50));
-                items.add(new Tuple<>("HBM_CANNED_TUNA", 1, 50));
-                items.add(new Tuple<>("HBM_CANNED_HOTDOGS", 3, 50));
-                items.add(new Tuple<>("HBM_CANNED_SPAM", 1, 50));
-                items.add(new Tuple<>("HBM_CANNED_YOGURT", 2, 50));
-                finalItem = generateLoot(items, 2);
-                return finalItem;
-
-            case "MWC_DESK_RIGHT_ALT1":
-                items.add(new Tuple<>("MWC_MP7", 1, 5));
-                items.add(new Tuple<>("MWC_M17", 1, 15));
-                items.add(new Tuple<>("HBM_BOTTLE2_FRITZ_SPECIAL", 1, 25));
-                items.add(new Tuple<>("HBM_SIOX", 1, 25));
-                items.add(new Tuple<>("HBM_BOTTLE2_KORL", 1, 25));
-                items.add(new Tuple<>("HBM_REACHER", 1, 30));
-                items.add(new Tuple<>("HBM_CANNED_ASS", 2, 40));
-                items.add(new Tuple<>("GUNPOWDER", 12, 40));
-                items.add(new Tuple<>("BOOK", 4, 40));
-                items.add(new Tuple<>("STRING", 5, 40));
-                finalItem = generateLoot(items, 3);
+            case "MWC_SUPPLY_DROP":
+                items.add(new Tuple<>("MWC_JUGGERNAUT_HELMET", 1, 25));
+                items.add(new Tuple<>("MWC_GHILLIE_HELMET", 1, 25));
+                items.add(new Tuple<>("MWC_SWAT_VEST", 1, 25));
+                items.add(new Tuple<>("MWC_M110_SASS", 1, 45));
+                items.add(new Tuple<>("HBM_MINE_AP", 4, 55));
+                items.add(new Tuple<>("HBM_GRENADE_IF_IMPACT", 2, 65));
+                items.add(new Tuple<>("HBM_GRENADE_POISON", 2, 55));
+                items.add(new Tuple<>("MWC_JUGGERNAUT_CHEST", 1, 25));
+                items.add(new Tuple<>("MWC_GHILLIE_CHEST", 1, 25));
+                items.add(new Tuple<>("MWC_USMC_VEST_URBAN", 1, 35));
+                items.add(new Tuple<>("MWC_KRISS_VECTOR", 1, 65));
+                items.add(new Tuple<>("MWC_M200_INTERVENTION", 1, 35));
+                items.add(new Tuple<>("HBM_GRENADE_IF_TOXIC", 2, 55));
+                items.add(new Tuple<>("MWC_JUGGERNAUT_BOOTS", 1, 25));
+                items.add(new Tuple<>("MWC_GHILLIE_BOOTS", 1, 25));
+                items.add(new Tuple<>("HBM_FUSION_CORE", 1, 20));
+                items.add(new Tuple<>("MWC_DUFFLE_BAG", 1, 65));
+                items.add(new Tuple<>("MWC_HK_417", 1, 55));
+                items.add(new Tuple<>("HBM_GRENADE_IF_HE", 4, 65));
+                finalItem = generateLoot(items, 6);
                 return finalItem;
         }
         return null;
