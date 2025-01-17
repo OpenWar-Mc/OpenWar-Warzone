@@ -64,7 +64,7 @@ public final class Main extends JavaPlugin {
                     int x = random.nextInt(8001) - 4000;
                     int z = random.nextInt(8001) - 4000;
                     Bukkit.broadcastMessage("§8» §4Event §8« §cSupply Drop at: §7x: §8"+x+" §7z: §8"+z);
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawnparachute "+x+" 250 "+z+" 11");
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "event airdrop "+x+" 200 "+z+" 11");
                 }
 
             }
