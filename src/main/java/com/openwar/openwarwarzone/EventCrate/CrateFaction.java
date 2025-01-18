@@ -55,6 +55,33 @@ public class CrateFaction implements Listener{
 
 
     @EventHandler(priority = EventPriority.HIGH)
+    public void invEvent(InventoryCloseEvent event) {
+        if (event.getPlayer().getWorld().getName().equals("faction")) {
+            if (event.getPlayer().getOpenInventory().getTitle().equals("§8§lSupply")) {
+                Inventory inventory = event.getInventory();
+                Location crateLoc = null;
+                Block targetBlock = event.getPlayer().getTargetBlock(null, 5);
+                if (targetBlock != null) {
+                     crateLoc = targetBlock.getLocation();
+                }
+                if (crateLoc != null && crateInventory.containsKey(crateLoc) && isInventoryEmpty(inventory)) {
+                    crateLoc.getBlock().setType(Material.AIR);
+                    crateInventory.remove(crateLoc);
+                    crateTimers.remove(crateLoc);
+                }
+            }
+        }
+    }
+
+    private boolean isInventoryEmpty(Inventory inventory) {
+        for (ItemStack item : inventory.getContents()) {
+            if (item != null && item.getType() != Material.AIR) {
+                return false;
+            }
+        }
+        return true;
+    }
+    @EventHandler(priority = EventPriority.HIGH)
     public void onLoot(PlayerInteractEvent event) {
         if (event.getPlayer().getWorld().getName().equals("faction")) {
             Block block = event.getClickedBlock();
