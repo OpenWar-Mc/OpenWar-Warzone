@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
@@ -80,6 +81,12 @@ public class LootCrate implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onLoot(PlayerInteractEvent event) {
+        if (event.getPlayer().isOp()) {
+            if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                event.setCancelled(false);
+                return;
+            }
+        }
         if (event.getPlayer().getWorld().getName().equals("warzone")) {
             Block block = event.getClickedBlock();
             if (block != null) {

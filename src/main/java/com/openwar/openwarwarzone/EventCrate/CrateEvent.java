@@ -325,9 +325,7 @@ public class CrateEvent implements Listener{
                     gui.setItem(finalSlot, cobweb);
 
                     Bukkit.getScheduler().runTask(main, () -> {
-                        for (Player p : Bukkit.getOnlinePlayers()) {
-                            p.playSound(p.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 0.4f, 1.0f);
-                        }
+                        player.playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 0.4f, 1.0f);
                     });
 
                     Bukkit.getScheduler().runTaskLater(main, this, delay);
