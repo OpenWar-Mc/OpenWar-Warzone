@@ -104,7 +104,7 @@ public class CTFHandler implements Listener {
             bossBarManager(3, progress);
             message = "§8» §7This zone is neutral. Progression : §b" + progress + "§7%";
         }
-        if (currentFaction != null && zone.getProgress() == 0) {
+        if (currentFaction != null && zone.getProgress() < 0) {
             bossBarManager(1, progress);
             message = "§8» §bLeading Faction : §c" + currentFaction + " §7| Progression : §b" + progress + "§7%";
         }

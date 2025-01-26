@@ -9,7 +9,7 @@ import java.util.Map;
 public class Zone {
     private String name;
     private String currentFaction = null;
-    private int progress = 0;
+    private int progress = 1;
     private Map<String, Integer> factionPresence = new HashMap<>();
     private static final int CAPTURE_PROGRESS_MAX = 100;
 
