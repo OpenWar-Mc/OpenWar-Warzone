@@ -1,15 +1,18 @@
 package com.openwar.openwarwarzone.WarzoneCTF;
 
+import com.openwar.openwarfaction.factions.FactionManager;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class Zone {
     private String name;
     private String currentFaction = null;
-    private int progress = 1;
+    private int progress = 0;
     private Map<String, Integer> factionPresence = new HashMap<>();
     private static final int CAPTURE_PROGRESS_MAX = 100;
 
@@ -18,7 +21,9 @@ public class Zone {
     }
 
     public void updatePresence(String factionName, int count) {
+        //on l'ajoute si il join
         factionPresence.put(factionName, factionPresence.getOrDefault(factionName, 0) + count);
+        //on le supprime si il quite
         factionPresence.entrySet().removeIf(entry -> entry.getValue() <= 0);
     }
 
@@ -29,14 +34,36 @@ public class Zone {
     }
 
     public void progressCapture(String factionName) {
-        if (currentFaction == null || !currentFaction.equals(factionName)) {
-            progress++;
-            if (progress >= CAPTURE_PROGRESS_MAX) {
-                currentFaction = factionName;
-                progress = 0;
-                Bukkit.broadcastMessage("§8» §4Warzone §8« §c" + currentFaction + " §7has captured the zone!");
+        if (getFactionPresenceStatus() == 1) {
+            if (currentFaction == null || !currentFaction.equals(factionName)) {
+                progress++;
+                if (progress >= CAPTURE_PROGRESS_MAX) {
+                    currentFaction = factionName;
+                    progress = 0;
+                    Bukkit.broadcastMessage("§8» §4Warzone §8« §c" + currentFaction + " §7has captured the building!");
+                }
             }
         }
+    }
+    public boolean isCaptured() {
+        return currentFaction != null;
+    }
+
+    public int getFactionPresenceStatus() {
+        int maxPresence = factionPresence.values().stream()
+                .max(Integer::compareTo)
+                .orElse(0);
+
+        long factionsWithMaxPresence = factionPresence.values().stream()
+                .filter(presence -> presence == maxPresence)
+                .count();
+
+        if (factionsWithMaxPresence == 1) {
+            return 1;
+        } else if (factionsWithMaxPresence > 1) {
+            return 2;
+        }
+        return 0;
     }
 
     public void resetCapture() {
@@ -44,7 +71,11 @@ public class Zone {
         progress = 0;
         factionPresence.clear();
     }
-
+    public boolean isFactionPresentInZone(Set<Player> players, FactionManager factionManager) {
+        return players.stream()
+                .map(player -> factionManager.getFactionByPlayer(player.getUniqueId()))
+                .anyMatch(faction -> faction != null && faction.getName().equals(currentFaction));
+    }
     public String getCurrentFaction() {
         return currentFaction;
     }
@@ -67,3 +98,4 @@ public class Zone {
         return progress;
     }
 }
+
