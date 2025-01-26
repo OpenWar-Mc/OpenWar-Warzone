@@ -68,10 +68,10 @@ public class CTFHandler implements Listener {
                     zone.resetCapture();
                     return;
                 }
-                if (!canStartCapture()) {
-                    zone.resetCapture();
-                    return;
-                }
+                //if (!canStartCapture()) {
+                //    zone.resetCapture();
+                //    return;
+                //}
                 manager.handleCaptureTick();
                 broadcastCaptureProgress();
             }
@@ -98,14 +98,14 @@ public class CTFHandler implements Listener {
         String message = "";
         if (currentFaction == null && zone.getProgress() == 0) {
             message = "§8» §7This zone is neutral.";
-            bossBarManager(2);
+            bossBarManager(2, progress);
         }
         if (currentFaction == null && zone.getProgress() != 0) {
-            bossBarManager(3);
+            bossBarManager(3, progress);
             message = "§8» §7This zone is neutral. Progression : §b" + progress + "§7%";
         }
-        if (currentFaction != null && zone.getProgress() != 0) {
-            bossBarManager(1);
+        if (currentFaction != null && zone.getProgress() == 0) {
+            bossBarManager(1, progress);
             message = "§8» §bLeading Faction : §c" + currentFaction + " §7| Progression : §b" + progress + "§7%";
         }
 
@@ -118,16 +118,24 @@ public class CTFHandler implements Listener {
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
     }
 
-    private void bossBarManager(int type) {
+    private void bossBarManager(int type, double progress) {
         switch (type) {
             case 1:
-                bossBar = Bukkit.createBossBar("§bBuilding Captured by §f"+zone.getCurrentFaction(), BarColor.BLUE, BarStyle.SOLID);
+                bossBar.setTitle("§bBuilding Captured by §f"+zone.getCurrentFaction());
+                bossBar.setColor(BarColor.BLUE);
+                bossBar.setStyle(BarStyle.SOLID);
                 break;
             case 2:
-                bossBar = Bukkit.createBossBar("§7Building Neutral", BarColor.WHITE, BarStyle.SOLID);
+                bossBar.setTitle("§7Building Neutral");
+                bossBar.setColor(BarColor.WHITE);
+                bossBar.setStyle(BarStyle.SOLID);
                 break;
             case 3:
-                bossBar = Bukkit.createBossBar("§f"+zone.getCurrentFaction()+" §cis Capturing the Building §7"+zone.getProgress()+" §7%", BarColor.RED, BarStyle.SOLID);
+                bossBar.setTitle("§8"+zone.getLeadingFaction()+" §cis Capturing the Building");
+                bossBar.setColor(BarColor.RED);
+                bossBar.setStyle(BarStyle.SOLID);
+                bossBar.setProgress(progress);
+                break;
         }
     }
     private void loopBossBar() {
