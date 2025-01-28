@@ -12,11 +12,17 @@ public class FactionCaptureManager {
     }
 
     public void handlePlayerEnter(Player player, FactionManager fm) {
-        zone.updatePresence(fm.getFactionByPlayer(player.getUniqueId()).getName(), 1);
+        Faction faction = fm.getFactionByPlayer(player.getUniqueId());
+        if (faction == null) return;
+        zone.updatePresence(faction.getName(), 1);
+        System.out.println("ENTRY " + player.getName());
     }
 
     public void handlePlayerExit(Player player, FactionManager fm) {
-        zone.updatePresence(fm.getFactionByPlayer(player.getUniqueId()).getName(), -1);
+        Faction faction = fm.getFactionByPlayer(player.getUniqueId());
+        if (faction == null) return;
+        zone.updatePresence(faction.getName(), -1);
+        System.out.println("EXIT " + player.getName());
     }
 
     public void handleCaptureTick() {
