@@ -110,13 +110,15 @@ public class BuildingCapture implements Listener {
         }
 
         Faction dominant = getDominantFaction();
-        if (dominant == null) return;
+        if (dominant == null) {
+            resetCapture();
+            return;
+        }
 
         if (capturingFaction == null || !capturingFaction.equals(dominant)) {
             startNewCapture(dominant);
         }
     }
-
     private void startNewCapture(Faction faction) {
         capturingFaction = faction;
         captureProgress = 0;
@@ -211,10 +213,23 @@ public class BuildingCapture implements Listener {
                 counts.merge(getFaction(p), 1, Integer::sum)
         );
 
-        return counts.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse(null);
+        Optional<Map.Entry<Faction, Integer>> maxEntry = counts.entrySet().stream()
+                .max(Map.Entry.comparingByValue());
+
+        if (!maxEntry.isPresent()) {
+            return null;
+        }
+
+        int maxCount = maxEntry.get().getValue();
+        long numberOfMax = counts.values().stream()
+                .filter(v -> v == maxCount)
+                .count();
+
+        if (numberOfMax > 1) {
+            return null;
+        }
+
+        return maxEntry.get().getKey();
     }
 
     private Faction getFaction(Player player) {
