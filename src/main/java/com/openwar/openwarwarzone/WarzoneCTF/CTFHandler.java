@@ -55,7 +55,7 @@ public class CTFHandler implements Listener {
             } else if (!isInZone && playersInZone.contains(player)) {
                 playersInZone.remove(player);
                 manager.handlePlayerExit(player, factionManager);
-                sendActionBar(player, "§8» §cYou are leaving the capture zone !");
+                sendActionBar(player, "§8» §aYou are on the capture zone !");
             }
         }
     }
@@ -69,10 +69,10 @@ public class CTFHandler implements Listener {
                     return;
                 }
 
-                if (!canStartCapture()) {
-                    zone.pauseCapture();
-                    return;
-                }
+//                if (!canStartCapture()) {
+//                    zone.pauseCapture();
+//                    return;
+//                }
 
                 manager.handleCaptureTick();
                 broadcastCaptureProgress();
@@ -90,25 +90,26 @@ public class CTFHandler implements Listener {
 
                     if (!factionMemberPresent) {
                         zone.resetCapture();
-                        Bukkit.broadcastMessage("§8» §4Warzone §8« §cZone has been neutralized!");
+                        Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding has been neutralized!");
                     }
                 }
             }
         }.runTaskTimer(main, 0, 1200);
     }
 
-    private boolean canStartCapture() {
-        if (playersInZone.size() < 3) return false;
-
-        long factionCount = playersInZone.stream()
-                .map(player -> factionManager.getFactionByPlayer(player.getUniqueId()))
-                .filter(faction -> faction != null)
-                .map(Faction::getName)
-                .distinct()
-                .count();
-
-        return factionCount >= 2;
-    }
+//    private boolean canStartCapture() {
+//        return true;
+//        if (playersInZone.size() < 3) return false;
+//
+//        long factionCount = playersInZone.stream()
+//                .map(player -> factionManager.getFactionByPlayer(player.getUniqueId()))
+//                .filter(faction -> faction != null)
+//                .map(Faction::getName)
+//                .distinct()
+//                .count();
+//
+//        return factionCount >= 2;
+//    }
 
 
     private void broadcastCaptureProgress() {

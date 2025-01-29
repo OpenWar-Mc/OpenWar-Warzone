@@ -1,0 +1,223 @@
+package com.openwar.openwarwarzone.WarzoneCTF;
+
+import com.openwar.openwarfaction.factions.Faction;
+import com.openwar.openwarfaction.factions.FactionManager;
+import com.openwar.openwarwarzone.Main;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.*;
+import org.bukkit.boss.*;
+import org.bukkit.entity.Player;
+import org.bukkit.event.*;
+import org.bukkit.event.player.*;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+import java.util.*;
+
+public class BuildingCapture implements Listener {
+
+    // Configuration
+    private final Cuboid captureZone = new Cuboid(
+            new Location(Bukkit.getWorld("warzone"), 2774, 56, 3085),
+            new Location(Bukkit.getWorld("warzone"), 2759, 46, 3115)
+    );
+
+    private final Set<Player> playersInZone = new HashSet<>();
+    private Faction currentOwner;
+    private Faction capturingFaction;
+    private int captureProgress = 0;
+    private BukkitTask captureTask;
+    private BukkitTask resetTask;
+    private BossBar bossBar;
+    private Main main;
+    private FactionManager fm;
+
+
+    public BuildingCapture(Main main, FactionManager fm) {
+        this.fm = fm;
+        this.main = main;
+        bossBar = Bukkit.createBossBar("Building Neutral", BarColor.WHITE, BarStyle.SOLID);
+        onStart();
+    }
+
+    public void onStart() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                updateCaptureState();
+            }
+        }.runTaskTimer(main, 0L, 20L);
+    }
+
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        boolean nowInZone = captureZone.contains(event.getTo());
+        boolean wasInZone = playersInZone.contains(player);
+
+        if (nowInZone && !wasInZone) {
+            handlePlayerEnter(player);
+        } else if (!nowInZone && wasInZone) {
+            handlePlayerExit(player);
+        }
+    }
+
+    private void handlePlayerEnter(Player player) {
+        playersInZone.add(player);
+        sendActionBar(player, "§8» §aYou are on the capture zone !");
+        updateBossBar();
+    }
+
+    private void handlePlayerExit(Player player) {
+        playersInZone.remove(player);
+        sendActionBar(player, "§8» §aYou are on the capture zone !");
+        updateBossBar();
+        checkCaptureInterruption();
+    }
+
+    private void updateCaptureState() {
+        if (!isCaptureActive()) {
+            resetCapture();
+            return;
+        }
+
+        Faction dominant = getDominantFaction();
+        if (dominant == null) return;
+
+        if (capturingFaction == null || !capturingFaction.equals(dominant)) {
+            startNewCapture(dominant);
+        }
+    }
+
+    private void startNewCapture(Faction faction) {
+        capturingFaction = faction;
+        captureProgress = 0;
+
+        if (captureTask != null) captureTask.cancel();
+
+        captureTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (capturingFaction.equals(getDominantFaction())) {
+                    advanceCapture();
+                } else {
+                    interruptCapture();
+                }
+            }
+        }.runTaskTimer(main, 0L, 20L);
+    }
+
+    private void advanceCapture() {
+        captureProgress += 2;
+        updateBossBar();
+
+        if (captureProgress >= 100) {
+            completeCapture();
+        }
+    }
+
+    private void completeCapture() {
+        currentOwner = capturingFaction;
+        Bukkit.broadcastMessage(ChatColor.GOLD + "[Capture] " + ChatColor.GREEN +
+                currentOwner.getName() + " a capturé le bâtiment !");
+
+        resetTask = Bukkit.getScheduler().runTaskLater(main, () -> {
+            currentOwner = null;
+            Bukkit.broadcastMessage(ChatColor.GOLD + "[Capture] " + ChatColor.WHITE +
+                    "Le bâtiment est redevenu neutre !");
+            updateBossBar();
+        }, 1200L);
+
+        resetCapture();
+    }
+
+    private void interruptCapture() {
+        Bukkit.broadcastMessage(ChatColor.GOLD + "[Capture] " + ChatColor.RED +
+                "Capture interrompue !");
+        resetCapture();
+    }
+
+    private void resetCapture() {
+        captureProgress = 0;
+        capturingFaction = null;
+        if (captureTask != null) captureTask.cancel();
+        updateBossBar();
+    }
+
+    private void updateBossBar() {
+        bossBar.setVisible(true);
+
+        if (currentOwner != null) {
+            bossBar.setTitle("Contrôlé par " + currentOwner.getName());
+            bossBar.setColor(BarColor.BLUE);
+            bossBar.setProgress(1.0);
+        } else if (capturingFaction != null) {
+            bossBar.setTitle("Capture par " + capturingFaction.getName() + " (" + captureProgress + "%)");
+            bossBar.setColor(BarColor.YELLOW);
+            bossBar.setProgress(captureProgress / 100.0);
+        } else {
+            bossBar.setTitle("Building Neutral");
+            bossBar.setColor(BarColor.WHITE);
+            bossBar.setProgress(1.0);
+        }
+
+        playersInZone.forEach(p -> {
+            if (!bossBar.getPlayers().contains(p)) {
+                bossBar.addPlayer(p);
+            }
+        });
+    }
+
+    private boolean isCaptureActive() {
+        if (currentOwner != null && playersInZone.stream()
+                .anyMatch(p -> currentOwner.equals(getFaction(p)))) {
+            return false;
+        }
+
+        Set<Faction> factions = new HashSet<>();
+        playersInZone.forEach(p -> factions.add(getFaction(p)));
+        return playersInZone.size() >= 3 && factions.size() >= 2;
+    }
+
+    private Faction getDominantFaction() {
+        Map<Faction, Integer> counts = new HashMap<>();
+        playersInZone.forEach(p ->
+                counts.merge(getFaction(p), 1, Integer::sum)
+        );
+
+        return counts.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
+    private Faction getFaction(Player player) {
+        return fm.getFactionByPlayer(player.getUniqueId());
+    }
+
+
+    private static class Cuboid {
+        private final int x1, y1, z1, x2, y2, z2;
+        private final World world;
+
+        public Cuboid(Location loc1, Location loc2) {
+            this.world = loc1.getWorld();
+            this.x1 = Math.min(loc1.getBlockX(), loc2.getBlockX());
+            this.y1 = Math.min(loc1.getBlockY(), loc2.getBlockY());
+            this.z1 = Math.min(loc1.getBlockZ(), loc2.getBlockZ());
+            this.x2 = Math.max(loc1.getBlockX(), loc2.getBlockX());
+            this.y2 = Math.max(loc1.getBlockY(), loc2.getBlockY());
+            this.z2 = Math.max(loc1.getBlockZ(), loc2.getBlockZ());
+        }
+
+        public boolean contains(Location loc) {
+            return loc.getWorld().equals(world) &&
+                    loc.getBlockX() >= x1 && loc.getBlockX() <= x2 &&
+                    loc.getBlockY() >= y1 && loc.getBlockY() <= y2 &&
+                    loc.getBlockZ() >= z1 && loc.getBlockZ() <= z2;
+        }
+    }
+    private void sendActionBar(Player player, String message) {
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(message));
+    }
+}
