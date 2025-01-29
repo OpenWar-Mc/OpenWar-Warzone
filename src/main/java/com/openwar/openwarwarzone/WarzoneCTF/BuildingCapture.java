@@ -16,7 +16,6 @@ import java.util.*;
 
 public class BuildingCapture implements Listener {
 
-    // Configuration
     private final Cuboid captureZone = new Cuboid(
             new Location(Bukkit.getWorld("warzone"), 2774, 56, 3085),
             new Location(Bukkit.getWorld("warzone"), 2759, 46, 3115)
@@ -31,6 +30,7 @@ public class BuildingCapture implements Listener {
     private BossBar bossBar;
     private Main main;
     private FactionManager fm;
+    private BukkitTask resetProgressTask;
 
 
     public BuildingCapture(Main main, FactionManager fm) {
@@ -70,9 +70,37 @@ public class BuildingCapture implements Listener {
 
     private void handlePlayerExit(Player player) {
         playersInZone.remove(player);
-        sendActionBar(player, "§8» §aYou are on the capture zone !");
+        sendActionBar(player, "§8» §cYou left the capture zone !");
         updateBossBar();
         checkCaptureInterruption();
+    }
+
+    private void checkCaptureInterruption() {
+        if (capturingFaction == null) return;
+
+        boolean hasMembersInZone = playersInZone.stream()
+                .anyMatch(p -> capturingFaction.equals(getFaction(p)));
+
+        if (!hasMembersInZone) {
+            startResetCountdown();
+        } else {
+            if (resetProgressTask != null) {
+                resetProgressTask.cancel();
+                resetProgressTask = null;
+            }
+        }
+    }
+    private void startResetCountdown() {
+        if (resetProgressTask != null) resetProgressTask.cancel();
+
+        resetProgressTask = Bukkit.getScheduler().runTaskLater(main, () -> {
+            boolean stillNoMembers = playersInZone.stream()
+                    .noneMatch(p -> capturingFaction.equals(getFaction(p)));
+
+            if (stillNoMembers) {
+                resetCapture();
+            }
+        }, 20 * 20L);
     }
 
     private void updateCaptureState() {
@@ -118,13 +146,11 @@ public class BuildingCapture implements Listener {
 
     private void completeCapture() {
         currentOwner = capturingFaction;
-        Bukkit.broadcastMessage(ChatColor.GOLD + "[Capture] " + ChatColor.GREEN +
-                currentOwner.getName() + " a capturé le bâtiment !");
+        Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Captured by §4"+currentOwner.getName());
 
         resetTask = Bukkit.getScheduler().runTaskLater(main, () -> {
             currentOwner = null;
-            Bukkit.broadcastMessage(ChatColor.GOLD + "[Capture] " + ChatColor.WHITE +
-                    "Le bâtiment est redevenu neutre !");
+            Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Neutralized");
             updateBossBar();
         }, 1200L);
 
@@ -132,8 +158,6 @@ public class BuildingCapture implements Listener {
     }
 
     private void interruptCapture() {
-        Bukkit.broadcastMessage(ChatColor.GOLD + "[Capture] " + ChatColor.RED +
-                "Capture interrompue !");
         resetCapture();
     }
 
@@ -148,11 +172,11 @@ public class BuildingCapture implements Listener {
         bossBar.setVisible(true);
 
         if (currentOwner != null) {
-            bossBar.setTitle("Contrôlé par " + currentOwner.getName());
+            bossBar.setTitle("Building Captured By §b" + currentOwner.getName());
             bossBar.setColor(BarColor.BLUE);
             bossBar.setProgress(1.0);
         } else if (capturingFaction != null) {
-            bossBar.setTitle("Capture par " + capturingFaction.getName() + " (" + captureProgress + "%)");
+            bossBar.setTitle("Building Currently Captured by §6" + capturingFaction.getName());
             bossBar.setColor(BarColor.YELLOW);
             bossBar.setProgress(captureProgress / 100.0);
         } else {

@@ -6,6 +6,7 @@ import com.openwar.openwarfaction.factions.FactionManager;
 import com.openwar.openwarwarzone.EventCrate.CrateFaction;
 import com.openwar.openwarwarzone.Handler.AllowedCommands;
 import com.openwar.openwarwarzone.Handler.LootCrate;
+import com.openwar.openwarwarzone.WarzoneCTF.BuildingCapture;
 import com.openwar.openwarwarzone.WarzoneCTF.CTFHandler;
 import com.openwar.openwarwarzone.WarzoneCTF.FactionCaptureManager;
 import com.openwar.openwarwarzone.WarzoneCTF.Zone;
@@ -45,9 +46,7 @@ public final class Main extends JavaPlugin {
         System.out.println(" ");
         System.out.println(" OpenWar - Warzone loading...");
         if (!setupDepend()) {return;}
-        Zone zone = new Zone("Building");
-        FactionCaptureManager fcm = new FactionCaptureManager(zone);
-        getServer().getPluginManager().registerEvents(new CTFHandler(zone, fcm,fm, this), this);
+        getServer().getPluginManager().registerEvents(new BuildingCapture(this, fm), this);
         getServer().getPluginManager().registerEvents(new LootCrate(pl, this), this);
         getServer().getPluginManager().registerEvents(new CrateFaction(pl, this), this);
         getServer().getPluginManager().registerEvents(new AllowedCommands(), this);
