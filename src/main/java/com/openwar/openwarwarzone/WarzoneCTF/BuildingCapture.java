@@ -104,7 +104,7 @@ public class BuildingCapture implements Listener {
     }
 
     private void updateCaptureState() {
-        if (!isCaptureActive()) {
+        if (!canStartCapture()) {
             resetCapture();
             return;
         }
@@ -192,16 +192,18 @@ public class BuildingCapture implements Listener {
         });
     }
 
-    private boolean isCaptureActive() {
-        if (currentOwner != null && playersInZone.stream()
-                .anyMatch(p -> currentOwner.equals(getFaction(p)))) {
-            return false;
-        }
-
-        Set<Faction> factions = new HashSet<>();
-        playersInZone.forEach(p -> factions.add(getFaction(p)));
-        return playersInZone.size() >= 3 && factions.size() >= 2;
+    private boolean canStartCapture() {
+        return true;
+//        if (playersInZone.size() < 3) return false;
+//        long factionCount = playersInZone.stream()
+//                .map(player -> fm.getFactionByPlayer(player.getUniqueId()))
+//                .filter(faction -> faction != null)
+//                .map(Faction::getName)
+//                .distinct()
+//                .count();
+//        return factionCount >= 2;
     }
+
 
     private Faction getDominantFaction() {
         Map<Faction, Integer> counts = new HashMap<>();
