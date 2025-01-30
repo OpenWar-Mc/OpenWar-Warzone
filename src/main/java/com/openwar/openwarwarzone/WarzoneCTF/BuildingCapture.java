@@ -151,12 +151,13 @@ public class BuildingCapture implements Listener {
         Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Captured by §4"+currentOwner.getName());
 
         resetTask = Bukkit.getScheduler().runTaskLater(main, () -> {
-            currentOwner = null;
-            Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Neutralized");
-            updateBossBar();
+            if (!capturingFaction.equals(getDominantFaction())) {
+                currentOwner = null;
+                Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Neutralized");
+                updateBossBar();
+                resetCapture();
+            }
         }, 1200L);
-
-        resetCapture();
     }
 
     private void interruptCapture() {
