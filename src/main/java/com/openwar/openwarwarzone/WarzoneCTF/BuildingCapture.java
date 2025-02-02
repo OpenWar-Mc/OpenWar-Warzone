@@ -150,9 +150,6 @@ public class BuildingCapture implements Listener {
         if (currentOwner == null) {
             Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Captured by §4"+capturingFaction.getName());
         }
-        if (playersInZone.stream().noneMatch(p -> capturingFaction.equals(getFaction(p)))) {
-            System.out.println("Personne dans la zone");
-        }
         currentOwner = capturingFaction;
         resetTask = Bukkit.getScheduler().runTaskLater(main, () -> {
             if (playersInZone.stream().noneMatch(p -> capturingFaction.equals(getFaction(p)))) {
@@ -171,7 +168,6 @@ public class BuildingCapture implements Listener {
         captureProgress = 0;
         capturingFaction = null;
         if (captureTask != null) captureTask.cancel();
-        Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Neutralized");
         updateBossBar();
     }
 
