@@ -33,10 +33,10 @@ public class BuildingCapture implements Listener {
     private BukkitTask resetProgressTask;
 
 
-    public BuildingCapture(Main main, FactionManager fm) {
+    public BuildingCapture(Main main, FactionManager fm, BossBar bossBar) {
         this.fm = fm;
         this.main = main;
-        bossBar = Bukkit.createBossBar("Building Neutral", BarColor.WHITE, BarStyle.SOLID);
+        this.bossBar = bossBar;
         onStart();
     }
 

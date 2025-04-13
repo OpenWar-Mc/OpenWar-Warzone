@@ -6,12 +6,16 @@ import com.openwar.openwarfaction.factions.FactionManager;
 import com.openwar.openwarwarzone.EventCrate.CrateFaction;
 import com.openwar.openwarwarzone.Handler.AllowedCommands;
 import com.openwar.openwarwarzone.Handler.LootCrate;
+import com.openwar.openwarwarzone.Handler.PlayerChangeWorldHandler;
 import com.openwar.openwarwarzone.WarzoneCTF.BuildingCapture;
 import com.openwar.openwarwarzone.WarzoneCTF.CTFHandler;
 import com.openwar.openwarwarzone.WarzoneCTF.FactionCaptureManager;
 import com.openwar.openwarwarzone.WarzoneCTF.Zone;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -46,13 +50,17 @@ public final class Main extends JavaPlugin {
         System.out.println(" ");
         System.out.println(" OpenWar - Warzone loading...");
         if (!setupDepend()) {return;}
-        getServer().getPluginManager().registerEvents(new BuildingCapture(this, fm), this);
+        BossBar bossBar = Bukkit.createBossBar("Building Neutral", BarColor.WHITE, BarStyle.SOLID);
+        getServer().getPluginManager().registerEvents(new BuildingCapture(this, fm, bossBar), this);
+        getServer().getPluginManager().registerEvents(new PlayerChangeWorldHandler(bossBar), this);
         getServer().getPluginManager().registerEvents(new LootCrate(pl, this), this);
         getServer().getPluginManager().registerEvents(new CrateFaction(pl, this), this);
         getServer().getPluginManager().registerEvents(new AllowedCommands(), this);
         eventYeay();
     }
 
+
+    // -- this stay here.
     private void eventYeay() {
         new BukkitRunnable() {
             @Override

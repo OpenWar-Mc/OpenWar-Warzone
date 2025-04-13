@@ -12,6 +12,7 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -59,7 +60,13 @@ public class CTFHandler implements Listener {
             }
         }
     }
-
+    @EventHandler
+    public void onPlayerChangeWorld(PlayerChangedWorldEvent event) {
+        Player player = event.getPlayer();
+        if (!player.getWorld().getName().equals("warzone")) {
+            bossBar.removePlayer(player);
+        }
+    }
     private void startCaptureTask() {
         new BukkitRunnable() {
             @Override
