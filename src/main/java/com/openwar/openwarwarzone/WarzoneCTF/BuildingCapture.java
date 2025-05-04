@@ -47,6 +47,15 @@ public class BuildingCapture implements Listener {
                 updateCaptureState();
             }
         }.runTaskTimer(main, 0L, 20L);
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (currentOwner != null) {
+                    Bukkit.broadcastMessage("§8» §4Warzone §8« §cAirdrop called at Building by §4" + currentOwner.getName() + " §c!");
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "event airdrop 2767 57 3098 13");
+                }
+            }
+        }.runTaskTimer(main, 0L, 20L * 60 * 5);
     }
 
     @EventHandler
@@ -76,10 +85,12 @@ public class BuildingCapture implements Listener {
     }
 
     private void checkCaptureInterruption() {
-        if (capturingFaction == null) return;
+        if (capturingFaction == null && currentOwner == null) return;
+
+        Faction factionToCheck = capturingFaction != null ? capturingFaction : currentOwner;
 
         boolean hasMembersInZone = playersInZone.stream()
-                .anyMatch(p -> capturingFaction.equals(getFaction(p)));
+                .anyMatch(p -> factionToCheck.equals(getFaction(p)));
 
         if (!hasMembersInZone) {
             startResetCountdown();
@@ -90,19 +101,23 @@ public class BuildingCapture implements Listener {
             }
         }
     }
+
     private void startResetCountdown() {
         if (resetProgressTask != null) resetProgressTask.cancel();
 
         resetProgressTask = Bukkit.getScheduler().runTaskLater(main, () -> {
+            Faction factionToCheck = capturingFaction != null ? capturingFaction : currentOwner;
+
             boolean stillNoMembers = playersInZone.stream()
-                    .noneMatch(p -> capturingFaction.equals(getFaction(p)));
+                    .noneMatch(p -> factionToCheck.equals(getFaction(p)));
 
             if (stillNoMembers) {
+                currentOwner = null;
                 resetCapture();
+                updateBossBar();
             }
-        }, 20 * 20L);
+        }, 20 * 60L);
     }
-
     private void updateCaptureState() {
         if (!canStartCapture()) {
             resetCapture();
@@ -151,14 +166,11 @@ public class BuildingCapture implements Listener {
             Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Captured by §4"+capturingFaction.getName());
         }
         currentOwner = capturingFaction;
-        resetTask = Bukkit.getScheduler().runTaskLater(main, () -> {
-            if (playersInZone.stream().noneMatch(p -> capturingFaction.equals(getFaction(p)))) {
-                currentOwner = null;
-                updateBossBar();
-                resetCapture();
-            }
-        }, 1200L);
+
+        checkCaptureInterruption();
     }
+
+
 
     private void interruptCapture() {
         resetCapture();

@@ -119,7 +119,6 @@ public class CrateEvent implements Listener{
 
     private List<AbstractMap.SimpleEntry<ItemStack, Integer>> createLoot(Tuple<String, Integer, Integer> tuple) {
         String type = tuple.getFirst();
-        System.out.println("type: " + type);
         List<Tuple<String, Integer, Integer>> items = new ArrayList<>();
         List<AbstractMap.SimpleEntry<ItemStack, Integer>> finalItem;
         switch (type) {

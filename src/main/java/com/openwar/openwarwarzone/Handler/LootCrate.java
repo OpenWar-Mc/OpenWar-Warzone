@@ -94,14 +94,20 @@ public class LootCrate implements Listener {
                 Optional<Tuple<String, Integer, Integer>> found = crates.stream()
                         .filter(tuple -> tuple.getFirst().equals(block.getType().name()))
                         .findFirst();
+
+
                 if (found.isPresent()) {
                     event.setCancelled(true);
                     Tuple<String, Integer, Integer> TriplesCouilles = found.get();
                     long cooldownTime = TriplesCouilles.getSecond() * 60 * 1000L;
                     long currentTime = System.currentTimeMillis();
+
+
                     if (crateTimers.containsKey(crateLoc)) {
                         long lastOpenTime = crateTimers.get(crateLoc);
                         long timeSinceLastOpen = currentTime - lastOpenTime;
+
+
                         if (timeSinceLastOpen >= cooldownTime) {
                             boolean isSafe = false;
                             if (block.getType().name().equals("HBM_SAFE")) {
@@ -109,6 +115,7 @@ public class LootCrate implements Listener {
                                 Bukkit.broadcastMessage("§8» §4Warzone §8« §f"+event.getPlayer().getName()+" §cis looting the Safe");
                             }
                             regenerateCrate(event, crateLoc, TriplesCouilles, isSafe);
+
                         } else {
                             if (crateInventory.containsKey(crateLoc)) {
                                 Inventory inv = crateInventory.get(crateLoc);
@@ -128,6 +135,9 @@ public class LootCrate implements Listener {
                                 }
                             }
                         }
+
+
+
                     } else {
                         boolean isSafe = false;
                         if (block.getType().name().equals("HBM_SAFE")) {
@@ -141,15 +151,55 @@ public class LootCrate implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGH)
+    public void invEvent(InventoryCloseEvent event) {
+        if (event.getPlayer().getWorld().getName().equals("warzone")) {
+            if (event.getPlayer().getOpenInventory().getTitle().equals("§8§lSupply")) {
+                Inventory inventory = event.getInventory();
+                Location crateLoc = null;
+                Block targetBlock = event.getPlayer().getTargetBlock(null, 5);
+                if (targetBlock != null) {
+                    crateLoc = targetBlock.getLocation();
+                }
+                Location loc = new Location(targetBlock.getWorld(),2768, 57 ,3100);
+                double distance = loc.distance(crateLoc);
+                if (distance < 20) {
+                    if (crateLoc != null && crateInventory.containsKey(crateLoc) && isInventoryEmpty(inventory)) {
+                        crateLoc.getBlock().setType(Material.AIR);
+                        crateInventory.remove(crateLoc);
+                        crateTimers.remove(crateLoc);
+                    }
+                }
+            }
+        }
+    }
+    private boolean isInventoryEmpty(Inventory inventory) {
+        for (ItemStack item : inventory.getContents()) {
+            if (item != null && item.getType() != Material.AIR) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void regenerateCrate(PlayerInteractEvent event, Location crateLoc, Tuple<String, Integer, Integer> TriplesCouilles, boolean isSafe) {
-        List<SimpleEntry<ItemStack, Integer>> loot = createLoot(TriplesCouilles);
+        Location loc = new Location(crateLoc.getWorld(),2768, 57 ,3100);
+        double distance = loc.distance(crateLoc);
+        List<SimpleEntry<ItemStack, Integer>> loot;
+        if (distance < 20) {
+            System.out.println(distance);
+             loot = createLoot(TriplesCouilles, true);
+        } else {
+            System.out.println(distance);
+            loot = createLoot(TriplesCouilles, false);
+        }
         Inventory inv = createGUI(loot, TriplesCouilles, event.getPlayer(), isSafe);
         crateInventory.put(crateLoc, inv);
         crateTimers.put(crateLoc, System.currentTimeMillis());
         event.getPlayer().openInventory(inv);
     }
 
-    private List<SimpleEntry<ItemStack, Integer>> createLoot(Tuple<String, Integer, Integer> tuple) {
+    private List<SimpleEntry<ItemStack, Integer>> createLoot(Tuple<String, Integer, Integer> tuple, boolean coin) {
         String type = tuple.getFirst();
         List<Tuple<String, Integer, Integer>> items = new ArrayList<>();
         List<SimpleEntry<ItemStack, Integer>> finalItem;
@@ -356,6 +406,9 @@ public class LootCrate implements Listener {
                 finalItem = generateLoot(items, 2);
                 return finalItem;
             case "MWC_SUPPLY_DROP":
+                if (coin) {
+                    items.add(new Tuple<>("OPENWARDRUGZ_WARZONE_COIN", 6, 100));
+                }
                 items.add(new Tuple<>("MWC_ACOG", 1, 45));
                 items.add(new Tuple<>("MWC_MICROREFLEX", 1, 50));
                 items.add(new Tuple<>("MWC_SPECTER", 1, 50));
