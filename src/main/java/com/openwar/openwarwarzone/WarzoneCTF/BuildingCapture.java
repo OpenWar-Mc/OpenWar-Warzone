@@ -51,8 +51,11 @@ public class BuildingCapture implements Listener {
             @Override
             public void run() {
                 if (currentOwner != null) {
-                    Bukkit.broadcastMessage("§8» §4Warzone §8« §cAirdrop called at Building by §4" + currentOwner.getName() + " §c!");
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "event airdrop 2767 57 3098 13");
+                    Location loc = new Location(Bukkit.getWorld("warzone"), 2767 ,57 ,3098);
+                    if (loc.getBlock().getType().equals(Material.AIR)) {
+                        Bukkit.broadcastMessage("§8» §4Warzone §8« §cAirdrop called at Building by §4" + currentOwner.getName() + " §c!");
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "event airdrop 2767 57 3098 13");
+                    }
                 }
             }
         }.runTaskTimer(main, 0L, 20L * 60 * 5);

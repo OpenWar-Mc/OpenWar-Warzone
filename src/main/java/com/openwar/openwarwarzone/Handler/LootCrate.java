@@ -408,20 +408,25 @@ public class LootCrate implements Listener {
             case "MWC_SUPPLY_DROP":
                 if (coin) {
                     items.add(new Tuple<>("OPENWARDRUGZ_WARZONE_COIN", 6, 100));
+                    items.add(new Tuple<>("MONEYSAFE", 1, 100));
+                    items.add(new Tuple<>("MONEYSAFE", 1, 100));
+                    items.add(new Tuple<>("MONEYSAFE", 1, 100));
+                    items.add(new Tuple<>("GOLDMC", 2, 40));
+                } else {
+                    items.add(new Tuple<>("MWC_ACOG", 1, 45));
+                    items.add(new Tuple<>("MWC_MICROREFLEX", 1, 50));
+                    items.add(new Tuple<>("MWC_SPECTER", 1, 50));
+                    items.add(new Tuple<>("MWC_HOLOGRAPHIC2", 1, 45));
+                    items.add(new Tuple<>("MCHELI_FIM92", 1, 35));
+                    items.add(new Tuple<>("MCHELI_FGM148", 1, 35));
+                    items.add(new Tuple<>("MWC_SOCOM_MAG", 3, 40));
+                    items.add(new Tuple<>("MWC_SV98MAG_2", 3, 35));
+                    items.add(new Tuple<>("MWC_M38MAG_2", 3, 40));
+                    items.add(new Tuple<>("MWC_M4A1MAG_2", 3, 30));
+                    items.add(new Tuple<>("MWC_M38_DMR", 1, 30));
+                    items.add(new Tuple<>("MWC_M4A1", 1, 40));
+                    items.add(new Tuple<>("MWC_SV98", 1, 20));
                 }
-                items.add(new Tuple<>("MWC_ACOG", 1, 45));
-                items.add(new Tuple<>("MWC_MICROREFLEX", 1, 50));
-                items.add(new Tuple<>("MWC_SPECTER", 1, 50));
-                items.add(new Tuple<>("MWC_HOLOGRAPHIC2", 1, 45));
-                items.add(new Tuple<>("MCHELI_FIM92", 1, 35));
-                items.add(new Tuple<>("MCHELI_FGM148", 1, 35));
-                items.add(new Tuple<>("MWC_SOCOM_MAG", 3, 40));
-                items.add(new Tuple<>("MWC_SV98MAG_2", 3, 35));
-                items.add(new Tuple<>("MWC_M38MAG_2", 3, 40));
-                items.add(new Tuple<>("MWC_M4A1MAG_2", 3, 30));
-                items.add(new Tuple<>("MWC_M38_DMR", 1, 30));
-                items.add(new Tuple<>("MWC_M4A1", 1, 40));
-                items.add(new Tuple<>("MWC_SV98", 1, 20));
                 finalItem = generateLoot(items, 4);
                 return finalItem;
             case "MWC_SCP_LOCKER":
