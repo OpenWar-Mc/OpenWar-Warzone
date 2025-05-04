@@ -17,7 +17,7 @@ import java.util.*;
 public class BuildingCapture implements Listener {
 
     private final Cuboid captureZone = new Cuboid(
-            new Location(Bukkit.getWorld("warzone"), 2774, 56, 3085),
+            new Location(Bukkit.getWorld("warzone"), 2774, 60, 3085),
             new Location(Bukkit.getWorld("warzone"), 2759, 46, 3115)
     );
 

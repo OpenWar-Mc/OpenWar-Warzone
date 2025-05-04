@@ -1,16 +1,12 @@
 package com.openwar.openwarwarzone;
 
 import com.openwar.openwarcore.Utils.LevelSaveAndLoadBDD;
-import com.openwar.openwarfaction.factions.Faction;
 import com.openwar.openwarfaction.factions.FactionManager;
 import com.openwar.openwarwarzone.EventCrate.CrateFaction;
 import com.openwar.openwarwarzone.Handler.AllowedCommands;
 import com.openwar.openwarwarzone.Handler.LootCrate;
 import com.openwar.openwarwarzone.Handler.PlayerChangeWorldHandler;
 import com.openwar.openwarwarzone.WarzoneCTF.BuildingCapture;
-import com.openwar.openwarwarzone.WarzoneCTF.CTFHandler;
-import com.openwar.openwarwarzone.WarzoneCTF.FactionCaptureManager;
-import com.openwar.openwarwarzone.WarzoneCTF.Zone;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
