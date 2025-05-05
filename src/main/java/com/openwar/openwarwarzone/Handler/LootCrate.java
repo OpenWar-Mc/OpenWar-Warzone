@@ -407,7 +407,7 @@ public class LootCrate implements Listener {
                 return finalItem;
             case "MWC_SUPPLY_DROP":
                 if (coin) {
-                    items.add(new Tuple<>("OPENWARDRUGZ_WARZONE_COIN", 6, 100));
+                    items.add(new Tuple<>("OPENWARDRUGZ_WARZONE_COIN", 2, 100));
                     items.add(new Tuple<>("MONEYSAFE", 1, 100));
                     items.add(new Tuple<>("MONEYSAFE", 1, 100));
                     items.add(new Tuple<>("MONEYSAFE", 1, 100));

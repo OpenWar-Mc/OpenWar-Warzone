@@ -58,7 +58,7 @@ public class BuildingCapture implements Listener {
                     }
                 }
             }
-        }.runTaskTimer(main, 0L, 20L * 60 * 5);
+        }.runTaskTimer(main, 0L, 20L * 60 * 10);
     }
 
     @EventHandler
