@@ -44,6 +44,12 @@ public class BuildingCapture implements Listener {
         new BukkitRunnable() {
             @Override
             public void run() {
+                updateRegionPlayer();
+            }
+        }.runTaskTimer(main, 0L, 20L);
+        new BukkitRunnable() {
+            @Override
+            public void run() {
                 updateCaptureState();
             }
         }.runTaskTimer(main, 0L, 20L);
@@ -61,18 +67,25 @@ public class BuildingCapture implements Listener {
         }.runTaskTimer(main, 0L, 20L * 60 * 10);
     }
 
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        boolean nowInZone = captureZone.contains(event.getTo());
-        boolean wasInZone = playersInZone.contains(player);
 
-        if (nowInZone && !wasInZone) {
-            handlePlayerEnter(player);
-        } else if (!nowInZone && wasInZone) {
-            handlePlayerExit(player);
-        }
+    public void updateRegionPlayer() {
+        main.getServer().getOnlinePlayers().forEach(player -> {
+           if (player.getWorld().getName().equals("warzone")) {
+               boolean nowInZone = captureZone.contains(player.getLocation());
+               boolean wasInZone = playersInZone.contains(player);
+               bossBar.addPlayer(player);
+               if (nowInZone && !wasInZone) {
+                   handlePlayerEnter(player);
+               } else if (!nowInZone && wasInZone) {
+                   handlePlayerExit(player);
+               }
+           } else {
+               bossBar.removePlayer(player);
+           }
+        });
     }
+
+
 
     private void handlePlayerEnter(Player player) {
         playersInZone.add(player);
@@ -91,7 +104,6 @@ public class BuildingCapture implements Listener {
         if (capturingFaction == null && currentOwner == null) return;
 
         Faction factionToCheck = capturingFaction != null ? capturingFaction : currentOwner;
-
         boolean hasMembersInZone = playersInZone.stream()
                 .anyMatch(p -> factionToCheck.equals(getFaction(p)));
 
@@ -202,24 +214,17 @@ public class BuildingCapture implements Listener {
             bossBar.setColor(BarColor.WHITE);
             bossBar.setProgress(1.0);
         }
-
-        playersInZone.forEach(p -> {
-            if (!bossBar.getPlayers().contains(p)) {
-                bossBar.addPlayer(p);
-            }
-        });
     }
 
     private boolean canStartCapture() {
-        return true;
-//        if (playersInZone.size() < 3) return false;
-//        long factionCount = playersInZone.stream()
-//                .map(player -> fm.getFactionByPlayer(player.getUniqueId()))
-//                .filter(faction -> faction != null)
-//                .map(Faction::getName)
-//                .distinct()
-//                .count();
-//        return factionCount >= 2;
+        if (main.getServer().getOnlinePlayers().size() < 3) return false;
+        long factionCount = main.getServer().getOnlinePlayers().stream()
+                .map(player -> fm.getFactionByPlayer(player.getUniqueId()))
+                .filter(faction -> faction != null)
+                .map(Faction::getName)
+                .distinct()
+                .count();
+        return factionCount >= 2;
     }
 
 
