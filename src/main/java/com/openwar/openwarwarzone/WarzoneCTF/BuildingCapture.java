@@ -14,6 +14,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import java.util.*;
 
+import static com.openwar.openwarwarzone.Utils.DiscordWebhookEmbed.sendWarzoneWebhook;
+import static com.openwar.openwarwarzone.Utils.DiscordWebhookEmbed.sendWebhook;
+
 public class BuildingCapture implements Listener {
 
     private final Cuboid captureZone = new Cuboid(
@@ -60,7 +63,7 @@ public class BuildingCapture implements Listener {
                     Location loc = new Location(Bukkit.getWorld("warzone"), 2767 ,57 ,3098);
                     if (loc.getBlock().getType().equals(Material.AIR)) {
                         Bukkit.broadcastMessage("§8» §4Warzone §8« §cAirdrop called at Building by §4" + currentOwner.getName() + " §c!");
-                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "event airdrop 2767 57 3098 13");
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "event airdrop 2767 57 3098 3");
                     }
                 }
             }
@@ -98,6 +101,11 @@ public class BuildingCapture implements Listener {
         sendActionBar(player, "§8» §cYou left the capture zone !");
         updateBossBar();
         checkCaptureInterruption();
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        playersInZone.remove(event.getPlayer());
     }
 
     private void checkCaptureInterruption() {
@@ -168,17 +176,28 @@ public class BuildingCapture implements Listener {
     }
 
     private void advanceCapture() {
-        captureProgress += 2;
+        captureProgress = Math.min(captureProgress + 2, 100);
         updateBossBar();
 
         if (captureProgress >= 100) {
             completeCapture();
         }
     }
-
     private void completeCapture() {
         if (currentOwner == null) {
             Bukkit.broadcastMessage("§8» §4Warzone §8« §cBuilding as been Captured by §4"+capturingFaction.getName());
+            String webhookUrl = "https://discord.com/api/webhooks/1395408967081136179/YsHYq8L8FfsAV5kID0372yQH13limGjUDw5rJLpDiNG_gRtEvTA-8ySbz-FTe_9AjGky";
+            String factionName = capturingFaction.getName();
+            List<Player> players = capturingFaction.getOnlineMembers();
+            List<String> memberNames = new ArrayList<>();
+            for (Player player : players) {
+                memberNames.add(player.getName());
+            }
+            try {
+                sendWarzoneWebhook(webhookUrl, factionName, memberNames);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         currentOwner = capturingFaction;
 
@@ -208,7 +227,8 @@ public class BuildingCapture implements Listener {
         } else if (capturingFaction != null) {
             bossBar.setTitle("Building Getting Captured by §6" + capturingFaction.getName());
             bossBar.setColor(BarColor.YELLOW);
-            bossBar.setProgress(captureProgress / 100.0);
+            double progress = Math.min(captureProgress / 100.0, 1.0);
+            bossBar.setProgress(progress);
         } else {
             bossBar.setTitle("Building Neutral");
             bossBar.setColor(BarColor.WHITE);

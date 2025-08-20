@@ -1,7 +1,6 @@
 package com.openwar.openwarwarzone.Handler;
 
-import com.openwar.openwarcore.Utils.LevelSaveAndLoadBDD;
-import com.openwar.openwarlevels.level.PlayerLevel;
+import com.openwar.openwarlevels.manager.PlayerManager;
 import com.openwar.openwarwarzone.Main;
 import com.openwar.openwarwarzone.Utils.Tuple;
 import net.md_5.bungee.api.ChatMessageType;
@@ -11,6 +10,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -27,26 +27,43 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.AbstractMap.SimpleEntry;
-
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class LootCrate implements Listener {
-    private final LevelSaveAndLoadBDD pl;
-    private final Map<Location, Inventory> crateInventory;
+    private final PlayerManager pl;
+    private final Map<Location, CrateWrapper> crateInventoryMap;
+    private final Map<Inventory, CrateWrapper> inventoryToWrapper;
     private Map<Location, Long> crateTimers = new HashMap<>();
-    private Map<Player, Integer> playerProgress = new HashMap<>();
-    private Map<Player, BukkitTask> activeTasks = new HashMap<>();
-    private Set<Player> playersWithOpenInventory = new HashSet<>();
     private JavaPlugin main;
-
-    double exp;
-    PlayerLevel xp;
 
     List<Tuple<String, Integer, Integer>> crates = new ArrayList<>();
 
-    public LootCrate(LevelSaveAndLoadBDD pl, Main main) {
+    private static class CrateWrapper {
+        Inventory inventory;
+        List<SimpleEntry<ItemStack, Integer>> loot;
+        List<Integer> occupiedSlots;
+        Tuple<String, Integer, Integer> crateType;
+        int currentProgress;
+        BukkitTask currentTask;
+        boolean isSafe;
+
+        public CrateWrapper(Inventory inventory, List<SimpleEntry<ItemStack, Integer>> loot,
+                            List<Integer> occupiedSlots, Tuple<String, Integer, Integer> crateType,
+                            boolean isSafe) {
+            this.inventory = inventory;
+            this.loot = loot;
+            this.occupiedSlots = occupiedSlots;
+            this.crateType = crateType;
+            this.currentProgress = 0;
+            this.isSafe = isSafe;
+        }
+    }
+
+    public LootCrate(PlayerManager pl, Main main) {
         this.pl = pl;
-        this.crateInventory = new HashMap<>();
+        this.crateInventoryMap = new HashMap<>();
+        this.inventoryToWrapper = new WeakHashMap<>();
         this.main = main;
         loadCrates();
     }
@@ -95,56 +112,44 @@ public class LootCrate implements Listener {
                         .filter(tuple -> tuple.getFirst().equals(block.getType().name()))
                         .findFirst();
 
-
                 if (found.isPresent()) {
                     event.setCancelled(true);
-                    Tuple<String, Integer, Integer> TriplesCouilles = found.get();
-                    long cooldownTime = TriplesCouilles.getSecond() * 60 * 1000L;
+                    Tuple<String, Integer, Integer> crateType = found.get();
+                    long cooldownTime = crateType.getSecond() * 60 * 1000L;
                     long currentTime = System.currentTimeMillis();
-
 
                     if (crateTimers.containsKey(crateLoc)) {
                         long lastOpenTime = crateTimers.get(crateLoc);
                         long timeSinceLastOpen = currentTime - lastOpenTime;
 
-
                         if (timeSinceLastOpen >= cooldownTime) {
-                            boolean isSafe = false;
-                            if (block.getType().name().equals("HBM_SAFE")) {
-                                isSafe = true;
-                                Bukkit.broadcastMessage("§8» §4Warzone §8« §f"+event.getPlayer().getName()+" §cis looting the Safe");
+                            CrateWrapper oldWrapper = crateInventoryMap.get(crateLoc);
+                            if (oldWrapper != null) {
+                                inventoryToWrapper.remove(oldWrapper.inventory);
                             }
-                            regenerateCrate(event, crateLoc, TriplesCouilles, isSafe);
-
+                            boolean isSafe = crateType.getFirst().equals("HBM_SAFE");
+                            if (isSafe) {
+                                Bukkit.broadcastMessage("§8» §4Warzone §8« §f" + event.getPlayer().getName() + " §cis looting the Safe");
+                            }
+                            CrateWrapper newWrapper = regenerateCrate(event, crateLoc, crateType, isSafe);
+                            crateInventoryMap.put(crateLoc, newWrapper);
+                            crateTimers.put(crateLoc, currentTime);
+                            event.getPlayer().openInventory(newWrapper.inventory);
                         } else {
-                            if (crateInventory.containsKey(crateLoc)) {
-                                Inventory inv = crateInventory.get(crateLoc);
-                                ItemStack[] contents = inv.getContents();
-                                boolean isEmpty = true;
-                                for (ItemStack item : contents) {
-                                    if (item != null && item.getType() != Material.AIR && item.getAmount() > 0) {
-                                        isEmpty = false;
-                                        break;
-                                    }
-                                }
-
-                                if (isEmpty) {
-                                    event.getPlayer().spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("§cX §7Empty"));
-                                } else {
-                                    event.getPlayer().openInventory(inv);
-                                }
+                            CrateWrapper wrapper = crateInventoryMap.get(crateLoc);
+                            if (wrapper != null) {
+                                event.getPlayer().openInventory(wrapper.inventory);
                             }
                         }
-
-
-
                     } else {
-                        boolean isSafe = false;
-                        if (block.getType().name().equals("HBM_SAFE")) {
-                            isSafe = true;
-                            Bukkit.broadcastMessage("§8» §4Warzone §8« §f"+event.getPlayer().getName()+" §cis looting the Safe");
+                        boolean isSafe = crateType.getFirst().equals("HBM_SAFE");
+                        if (isSafe) {
+                            Bukkit.broadcastMessage("§8» §4Warzone §8« §f" + event.getPlayer().getName() + " §cis looting the Safe");
                         }
-                        regenerateCrate(event, crateLoc, TriplesCouilles, isSafe);
+                        CrateWrapper wrapper = regenerateCrate(event, crateLoc, crateType, isSafe);
+                        crateInventoryMap.put(crateLoc, wrapper);
+                        crateTimers.put(crateLoc, currentTime);
+                        event.getPlayer().openInventory(wrapper.inventory);
                     }
                 }
             }
@@ -154,20 +159,23 @@ public class LootCrate implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void invEvent(InventoryCloseEvent event) {
         if (event.getPlayer().getWorld().getName().equals("warzone")) {
-            if (event.getPlayer().getOpenInventory().getTitle().equals("§8§lSupply")) {
-                Inventory inventory = event.getInventory();
+            if (event.getInventory().getHolder() == null && event.getView().getTitle().startsWith("§8§l")) {
                 Location crateLoc = null;
                 Block targetBlock = event.getPlayer().getTargetBlock(null, 5);
                 if (targetBlock != null) {
                     crateLoc = targetBlock.getLocation();
                 }
-                Location loc = new Location(targetBlock.getWorld(),2768, 57 ,3100);
+                Location loc = new Location(targetBlock.getWorld(), 2768, 57, 3100);
                 double distance = loc.distance(crateLoc);
                 if (distance < 20) {
-                    if (crateLoc != null && crateInventory.containsKey(crateLoc) && isInventoryEmpty(inventory)) {
-                        crateLoc.getBlock().setType(Material.AIR);
-                        crateInventory.remove(crateLoc);
-                        crateTimers.remove(crateLoc);
+                    CrateWrapper wrapper = inventoryToWrapper.get(event.getInventory());
+                    if (wrapper != null && isInventoryEmpty(event.getInventory())) {
+                        if (targetBlock.getType().toString().equals("MWC_SUPPLY_DROP")) {
+                            crateLoc.getBlock().setType(Material.AIR);
+                            crateInventoryMap.remove(crateLoc);
+                            crateTimers.remove(crateLoc);
+                            inventoryToWrapper.remove(event.getInventory());
+                        }
                     }
                 }
             }
@@ -182,23 +190,34 @@ public class LootCrate implements Listener {
         return true;
     }
 
-    private void regenerateCrate(PlayerInteractEvent event, Location crateLoc, Tuple<String, Integer, Integer> TriplesCouilles, boolean isSafe) {
+    private CrateWrapper regenerateCrate(PlayerInteractEvent event, Location crateLoc,
+                                         Tuple<String, Integer, Integer> crateType, boolean isSafe) {
         Location loc = new Location(crateLoc.getWorld(),2768, 57 ,3100);
         double distance = loc.distance(crateLoc);
-        List<SimpleEntry<ItemStack, Integer>> loot;
-        if (distance < 20) {
-            System.out.println(distance);
-             loot = createLoot(TriplesCouilles, true);
-        } else {
-            System.out.println(distance);
-            loot = createLoot(TriplesCouilles, false);
-        }
-        Inventory inv = createGUI(loot, TriplesCouilles, event.getPlayer(), isSafe);
-        crateInventory.put(crateLoc, inv);
-        crateTimers.put(crateLoc, System.currentTimeMillis());
-        event.getPlayer().openInventory(inv);
-    }
+        List<SimpleEntry<ItemStack, Integer>> loot = createLoot(crateType, distance < 20);
+        Inventory inv = Bukkit.createInventory(null, crateType.getThird(), "§8§l" + getDisName(crateType.getFirst()));
+        CrateWrapper wrapper = new CrateWrapper(inv, loot, new ArrayList<>(), crateType, isSafe);
+        Random random = new Random();
 
+        for (SimpleEntry<ItemStack, Integer> entry : loot) {
+            int slot;
+            do {
+                slot = random.nextInt(crateType.getThird());
+            } while (wrapper.occupiedSlots.contains(slot));
+            wrapper.occupiedSlots.add(slot);
+
+            ItemStack cobweb = new ItemStack(Material.BARRIER);
+            ItemMeta meta = cobweb.getItemMeta();
+            meta.setDisplayName("§7Searching...");
+            meta.setLore(Collections.singletonList("§8[§7     §8]"));
+            cobweb.setItemMeta(meta);
+            inv.setItem(slot, cobweb);
+        }
+
+        inventoryToWrapper.put(inv, wrapper);
+        processNextItem(wrapper);
+        return wrapper;
+    }
     private List<SimpleEntry<ItemStack, Integer>> createLoot(Tuple<String, Integer, Integer> tuple, boolean coin) {
         String type = tuple.getFirst();
         List<Tuple<String, Integer, Integer>> items = new ArrayList<>();
@@ -217,12 +236,15 @@ public class LootCrate implements Listener {
             case "MWC_WEAPONS_LOCKER":
                 items.add(new Tuple<>("MWC_SOCOM_MAG", 2, 35));
                 items.add(new Tuple<>("MWC_SV98MAG_2", 2, 20));
+                items.add(new Tuple<>("MWC_ARMORPLATET2", 1, 10));
+                items.add(new Tuple<>("MWC_ARMORPLATET1", 1, 10));
                 items.add(new Tuple<>("MWC_M38MAG_2", 2, 30));
                 items.add(new Tuple<>("MWC_M4A1MAG_2", 2, 40));
                 items.add(new Tuple<>("MWC_M38_DMR", 1, 30));
                 items.add(new Tuple<>("MWC_M4A1", 1, 40));
                 items.add(new Tuple<>("MWC_SV98", 1, 10));
                 items.add(new Tuple<>("MWC_ACOG", 1, 45));
+                items.add(new Tuple<>("MWC_REMINGTON870", 1, 35));
                 items.add(new Tuple<>("MWC_MICROREFLEX", 1, 50));
                 items.add(new Tuple<>("MWC_SPECTER", 1, 50));
                 items.add(new Tuple<>("MWC_HOLOGRAPHIC2", 1, 45));
@@ -285,25 +307,17 @@ public class LootCrate implements Listener {
                 finalItem = generateLoot(items, 2);
                 return finalItem;
             case "MWC_WOODEN_CRATE_OPENED":
-                items.add(new Tuple<>("MWC_BULLET9X19MM", 40, 60));
-                items.add(new Tuple<>("MWC_BULLET9X18MM", 38, 60));
+                items.add(new Tuple<>("MWC_BULLET9X19MM", 40, 45));
+                items.add(new Tuple<>("MWC_BULLET9X18MM", 38, 45));
                 items.add(new Tuple<>("MWC_BULLET45ACP", 35, 55));
                 items.add(new Tuple<>("MWC_BULLET762X39", 30, 45));
-                items.add(new Tuple<>("MWC_BULLET762X54", 38, 45));
+                items.add(new Tuple<>("MWC_BULLET762X54", 38, 10));
                 items.add(new Tuple<>("MWC_BULLET556X45", 35, 50));
                 items.add(new Tuple<>("MWC_BULLET545X39", 32, 50));
-                items.add(new Tuple<>("MWC_SV98MAG_2", 2, 20));
-                items.add(new Tuple<>("MWC_SOCOM_MAG", 2, 30));
-                items.add(new Tuple<>("MWC_M38MAG_2", 2, 30));
-                items.add(new Tuple<>("MWC_M4A1MAG_2", 2, 30));
-                items.add(new Tuple<>("MWC_AK74MAG", 2, 30));
-                items.add(new Tuple<>("MWC_AK47MAG", 2, 30));
-                items.add(new Tuple<>("MWC_AK47PMAGTAN", 2, 30));
-                items.add(new Tuple<>("MWC_AK15MAG_2", 2, 30));
+                items.add(new Tuple<>("MWC_SHOTGUN12GAUGE", 4, 35));
                 items.add(new Tuple<>("MWC_AK74", 1, 5));
                 items.add(new Tuple<>("MWC_AK47", 1, 5));
                 items.add(new Tuple<>("MWC_MAC10", 1, 15));
-                items.add(new Tuple<>("MWC_MAC10MAG", 3, 25));
                 finalItem = generateLoot(items, 3);
                 return finalItem;
             case "MWC_WEAPONS_CASE":
@@ -312,26 +326,20 @@ public class LootCrate implements Listener {
                 items.add(new Tuple<>("MWC_M38MAG_2", 2, 35));
                 items.add(new Tuple<>("MWC_M4A1MAG_2", 2, 40));
                 items.add(new Tuple<>("MWC_M38_DMR", 1, 30));
+                items.add(new Tuple<>("MWC_REMINGTON870", 1, 35));
                 items.add(new Tuple<>("MWC_M4A1", 1, 40));
                 items.add(new Tuple<>("MWC_SV98", 1, 10));
                 finalItem = generateLoot(items, 2);
                 return finalItem;
             case "MWC_AMMO_BOX":
-                items.add(new Tuple<>("MWC_BULLET9X19MM", 40, 60));
-                items.add(new Tuple<>("MWC_BULLET9X18MM", 38, 60));
-                items.add(new Tuple<>("MWC_BULLET45ACP", 35, 55));
+                items.add(new Tuple<>("MWC_BULLET9X19MM", 40, 35));
+                items.add(new Tuple<>("MWC_BULLET9X18MM", 38, 35));
+                items.add(new Tuple<>("MWC_BULLET45ACP", 35, 35));
                 items.add(new Tuple<>("MWC_BULLET762X39", 30, 45));
-                items.add(new Tuple<>("MWC_BULLET762X54", 38, 45));
+                items.add(new Tuple<>("MWC_BULLET762X54", 38, 10));
                 items.add(new Tuple<>("MWC_BULLET556X45", 35, 50));
                 items.add(new Tuple<>("MWC_BULLET545X39", 32, 50));
-                items.add(new Tuple<>("MWC_SV98MAG_2", 2, 20));
-                items.add(new Tuple<>("MWC_SOCOM_MAG", 2, 30));
-                items.add(new Tuple<>("MWC_M38MAG_2", 2, 30));
-                items.add(new Tuple<>("MWC_M4A1MAG_2", 2, 30));
-                items.add(new Tuple<>("MWC_AK74MAG", 2, 30));
-                items.add(new Tuple<>("MWC_AK47MAG", 2, 30));
-                items.add(new Tuple<>("MWC_AK47PMAGTAN", 2, 30));
-                items.add(new Tuple<>("MWC_AK15MAG_2", 2, 30));
+                items.add(new Tuple<>("MWC_SHOTGUN12GAUGE", 4, 35));
                 finalItem = generateLoot(items, 2);
                 return finalItem;
             case "MWC_VENDING_MACHINE":
@@ -411,6 +419,8 @@ public class LootCrate implements Listener {
                     items.add(new Tuple<>("MONEYSAFE", 1, 100));
                     items.add(new Tuple<>("MONEYSAFE", 1, 100));
                     items.add(new Tuple<>("MONEYSAFE", 1, 100));
+                    items.add(new Tuple<>("MWC_ARMORPLATET3", 1, 80));
+                    items.add(new Tuple<>("MWC_ARMORPLATET4", 1, 40));
                     items.add(new Tuple<>("GOLDMC", 2, 40));
                 } else {
                     items.add(new Tuple<>("MWC_ACOG", 1, 45));
@@ -426,6 +436,8 @@ public class LootCrate implements Listener {
                     items.add(new Tuple<>("MWC_M38_DMR", 1, 30));
                     items.add(new Tuple<>("MWC_M4A1", 1, 40));
                     items.add(new Tuple<>("MWC_SV98", 1, 20));
+                    items.add(new Tuple<>("MWC_ARMORPLATET3", 1, 20));
+                    items.add(new Tuple<>("MWC_ARMORPLATET4", 1, 60));
                 }
                 finalItem = generateLoot(items, 4);
                 return finalItem;
@@ -447,6 +459,9 @@ public class LootCrate implements Listener {
                 items.add(new Tuple<>("MWC_TRU_SPEC_CORDURA_BACKPACK_TAN", 1, 15));
                 items.add(new Tuple<>("MWC_F5_SWITCHBLADE_BACKPACK", 1, 20));
                 items.add(new Tuple<>("MWC_COMBAT_SUSTAINMENT_BACKPACK_TAN", 1, 30));
+                items.add(new Tuple<>("MWC_ARMORPLATET3", 1, 20));
+                items.add(new Tuple<>("MWC_ARMORPLATET2", 1, 30));
+                items.add(new Tuple<>("MWC_ARMORPLATET1", 1, 30));
                 finalItem = generateLoot(items, 1);
                 return finalItem;
             case "MWC_LOCKER":
@@ -570,169 +585,91 @@ public class LootCrate implements Listener {
         }
         return finalItems;
     }
-
-    private Inventory createGUI(List<SimpleEntry<ItemStack, Integer>> loot, Tuple<String, Integer, Integer> crate, Player player, boolean isSafe) {
-        if (loot == null || crate == null) {
-            throw new IllegalArgumentException("Loot list or crate cannot be null.");
-        }
-
-        if (isSafe) System.out.println("createGUI - Initializing inventory for crate: " + crate.getFirst() + " and player: " + player.getName());
-
-        Random random = new Random();
-        String name = getDisName(crate.getFirst());
-        Inventory gui = Bukkit.createInventory(null, crate.getThird(), "§8§l" + name);
-
-        Set<Integer> occupiedSlots = new HashSet<>();
-
-        for (SimpleEntry<ItemStack, Integer> entry : loot) {
-            ItemStack item = entry.getKey();
-            if (item == null || entry.getValue() <= 0) {
-                continue;
-            }
-
-            int slot;
-            do {
-                slot = random.nextInt(crate.getThird());
-            } while (occupiedSlots.contains(slot));
-
-            if (isSafe) System.out.println("createGUI - Assigning item to slot: " + slot);
-            occupiedSlots.add(slot);
-
-            ItemStack cobweb = new ItemStack(Material.BARRIER);
-            ItemMeta cobwebMeta = cobweb.getItemMeta();
-            cobwebMeta.setDisplayName("§7Searching...");
-            cobwebMeta.setLore(Collections.singletonList("§8[§7     §8]"));
-            cobweb.setItemMeta(cobwebMeta);
-            gui.setItem(slot, cobweb);
-        }
-
-        playerProgress.put(player, 0);
-        playersWithOpenInventory.add(player);
-        processNextItem(gui, loot, crate, occupiedSlots, 0, player, isSafe);
-
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onInventoryClick(InventoryClickEvent event) {
-                if (event.getInventory().equals(gui)) {
-                    if (event.getCurrentItem() != null && event.getCurrentItem().getType() == Material.BARRIER) {
-                        if (isSafe) System.out.println("onInventoryClick - Clicked on BARRIER slot. Cancelling event.");
-                        event.setCancelled(true);
-                    }
-                }
-            }
-
-            @EventHandler
-            public void onInventoryClose(InventoryCloseEvent event) {
-                if (event.getPlayer().equals(player) && event.getInventory().equals(gui)) {
-                    if (isSafe) System.out.println("onInventoryClose - Inventory closed by player: " + player.getName());
-                    BukkitTask task = activeTasks.get(player);
-                    if (task != null) {
-                        task.cancel();
-                    }
-                    playersWithOpenInventory.remove(player);
-                }
-            }
-
-            @EventHandler
-            public void onInventoryOpen(InventoryOpenEvent event) {
-                if (event.getPlayer().equals(player) && event.getInventory().equals(gui)) {
-                    if (!playersWithOpenInventory.contains(player)) {
-                        if (isSafe) System.out.println("onInventoryOpen - Inventory re-opened by player: " + player.getName());
-                        int progress = playerProgress.getOrDefault(player, 0);
-                        playersWithOpenInventory.add(player);
-                        processNextItem(gui, loot, crate, occupiedSlots, progress, player, isSafe);
-                    }
-                }
-            }
-        }, main);
-
-        return gui;
-    }
-
-    private void processNextItem(Inventory gui, List<SimpleEntry<ItemStack, Integer>> lootList, Tuple<String, Integer, Integer> crate, Set<Integer> occupiedSlots, int currentIndex, Player player, boolean isSafe) {
-        if (currentIndex >= lootList.size()) {
-            if (isSafe) System.out.println("processNextItem - All items processed for player: " + player.getName());
+    private void processNextItem(CrateWrapper wrapper) {
+        if (wrapper.currentProgress >= wrapper.loot.size()) {
             return;
         }
 
-        SimpleEntry<ItemStack, Integer> entry = lootList.get(currentIndex);
-        ItemStack item = entry.getKey();
-        if (item == null || entry.getValue() <= 0) {
-            if (isSafe) System.out.println("processNextItem - Skipping invalid item at index: " + currentIndex);
-            processNextItem(gui, lootList, crate, occupiedSlots, currentIndex + 1, player, isSafe);
-            return;
-        }
+        SimpleEntry<ItemStack, Integer> entry = wrapper.loot.get(wrapper.currentProgress);
+        int slot = wrapper.occupiedSlots.get(wrapper.currentProgress);
 
-        final ItemStack finalItem = item.clone();
+        ItemStack finalItem = entry.getKey().clone();
         finalItem.setAmount(getWeightedRandom(entry.getValue()));
 
-        int slot = occupiedSlots.stream()
-                .filter(s -> gui.getItem(s) != null && gui.getItem(s).getType() == Material.BARRIER)
-                .findFirst()
-                .orElse(-1);
+        ItemStack cobweb = wrapper.inventory.getItem(slot);
+        if (cobweb == null || cobweb.getType() != Material.BARRIER) {
+            wrapper.currentProgress++;
+            processNextItem(wrapper);
+            return;
+        }
 
-        if (isSafe) System.out.println("processNextItem - Processing item at index: " + currentIndex + ", slot: " + slot);
-
-        ItemStack cobweb = new ItemStack(Material.BARRIER);
-        ItemMeta cobwebMeta = cobweb.getItemMeta();
-        cobwebMeta.setDisplayName("§7Searching...");
-        StringBuilder progressBar = new StringBuilder("§8[§7     §8]");
-        cobwebMeta.setLore(Collections.singletonList(progressBar.toString()));
-        cobweb.setItemMeta(cobwebMeta);
-        gui.setItem(slot, cobweb);
-
-        final int finalSlot = slot;
-        long delay = isSafe ? 40L : 5L;
-
-        BukkitTask task = Bukkit.getScheduler().runTaskLater(main, new Runnable() {
+        wrapper.currentTask = Bukkit.getScheduler().runTaskLater(main, new Runnable() {
             int progress = 0;
             final int maxProgress = 5;
 
             @Override
             public void run() {
-                if (!playersWithOpenInventory.contains(player)) {
-                    if (isSafe) System.out.println("processNextItem - Player no longer in inventory: " + player.getName());
+                if (wrapper.inventory.getViewers().isEmpty()) {
                     return;
                 }
 
                 if (progress < maxProgress) {
-                    progress++;
-
-                    if (isSafe) System.out.println("processNextItem - Updating progress bar for player: " + player.getName() + ", progress: " + progress + "/" + maxProgress);
-
                     ItemMeta meta = cobweb.getItemMeta();
                     StringBuilder progressBar = new StringBuilder("§8[§7");
-                    for (int i = 0; i < progress; i++) {
-                        progressBar.append("█");
-                    }
-                    for (int i = progress; i < maxProgress; i++) {
-                        progressBar.append(" ");
-                    }
+                    for (int i = 0; i < progress; i++) progressBar.append("█");
+                    for (int i = progress; i < maxProgress; i++) progressBar.append(" ");
                     progressBar.append("§8]");
-
                     meta.setLore(Collections.singletonList(progressBar.toString()));
                     cobweb.setItemMeta(meta);
-                    gui.setItem(finalSlot, cobweb);
+                    wrapper.inventory.setItem(slot, cobweb);
 
-                    Bukkit.getScheduler().runTask(main, () -> {
-                        player.playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 0.4f, 1.0f);
-                    });
+                    for (HumanEntity player : wrapper.inventory.getViewers()) {
+                        Player p = (Player) player;
+                        p.playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 0.4f, 1.0f);
+                    }
 
-                    Bukkit.getScheduler().runTaskLater(main, this, delay);
+                    progress++;
+                    wrapper.currentTask = Bukkit.getScheduler().runTaskLater(main, this, wrapper.isSafe ? 40L : 5L);
                 } else {
-                    if (isSafe) System.out.println("processNextItem - Replacing placeholder with final item for player: " + player.getName());
-                    gui.setItem(finalSlot, finalItem);
-                    Bukkit.getScheduler().runTaskLater(main, () -> {
-                        playerProgress.put(player, currentIndex + 1);
-                        processNextItem(gui, lootList, crate, occupiedSlots, currentIndex + 1, player, isSafe);
-                    }, 1L);
+                    wrapper.inventory.setItem(slot, finalItem);
+                    wrapper.currentProgress++;
+                    processNextItem(wrapper);
                 }
             }
-        }, delay);
-
-        activeTasks.put(player, task);
+        }, wrapper.isSafe ? 40L : 5L);
     }
 
+    @EventHandler
+    public void onInventoryOpen(InventoryOpenEvent event) {
+        Inventory inv = event.getInventory();
+        CrateWrapper wrapper = inventoryToWrapper.get(inv);
+        if (wrapper != null && wrapper.currentProgress < wrapper.loot.size()) {
+            if (wrapper.currentTask == null || wrapper.currentTask.isCancelled()) {
+                processNextItem(wrapper);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        Inventory inv = event.getInventory();
+        CrateWrapper wrapper = inventoryToWrapper.get(inv);
+        if (wrapper != null && wrapper.currentTask != null) {
+            wrapper.currentTask.cancel();
+            wrapper.currentTask = null;
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        Inventory inv = event.getInventory();
+        CrateWrapper wrapper = inventoryToWrapper.get(inv);
+        if (wrapper != null) {
+            if (event.getCurrentItem() != null && event.getCurrentItem().getType() == Material.BARRIER) {
+                event.setCancelled(true);
+            }
+        }
+    }
 
     private String getDisName(String type) {
         if (type.startsWith("MWC") || type.startsWith("HBM") || type.startsWith("CFM")) {

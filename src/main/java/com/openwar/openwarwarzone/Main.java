@@ -1,7 +1,7 @@
 package com.openwar.openwarwarzone;
 
-import com.openwar.openwarcore.Utils.LevelSaveAndLoadBDD;
 import com.openwar.openwarfaction.factions.FactionManager;
+import com.openwar.openwarlevels.manager.PlayerManager;
 import com.openwar.openwarwarzone.EventCrate.CrateFaction;
 import com.openwar.openwarwarzone.Handler.AllowedCommands;
 import com.openwar.openwarwarzone.Handler.LootCrate;
@@ -21,13 +21,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static com.openwar.openwarwarzone.Utils.DiscordWebhookEmbed.sendWebhook;
+
 public final class Main extends JavaPlugin {
-    private LevelSaveAndLoadBDD pl;
+    private PlayerManager pl;
     private FactionManager fm;
     private Economy economy = null;
 
     private boolean setupDepend() {
-        RegisteredServiceProvider<LevelSaveAndLoadBDD> levelProvider = getServer().getServicesManager().getRegistration(LevelSaveAndLoadBDD.class);
+        RegisteredServiceProvider<PlayerManager> levelProvider = getServer().getServicesManager().getRegistration(PlayerManager.class);
         RegisteredServiceProvider<FactionManager> factionDataProvider = getServer().getServicesManager().getRegistration(FactionManager.class);
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
         if (    levelProvider == null || factionDataProvider == null || rsp == null) {
@@ -68,6 +70,16 @@ public final class Main extends JavaPlugin {
                     int z = random.nextInt(8001) - 4000;
                     Bukkit.broadcastMessage("§8» §4Event §8« §cSupply Drop at: §7x: §8"+x+" §7z: §8"+z);
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "event airdrop "+x+" 200 "+z+" 6");
+                    String webhookUrl = "https://discord.com/api/webhooks/1395408967081136179/YsHYq8L8FfsAV5kID0372yQH13limGjUDw5rJLpDiNG_gRtEvTA-8ySbz-FTe_9AjGky";
+
+                    try {
+                        sendWebhook(webhookUrl, x, z);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    for (Player player : players) {
+                        getServer().dispatchCommand(Bukkit.getConsoleSender(), "hud https://media.discordapp.net/attachments/1263073609287729192/1395406402268430377/aaaaa.png?ex=687a54fb&is=6879037b&hm=bb563831a7d7bdb9c4820c269d735bcc1ee17b281bae528d939477b1aed91d6f&=&format=png&quality=lossless&width=985&height=479 75 30 up [&cAirdrop &f- &4Faction World] 1 down "+player.getDisplayName()+" false false");
+                    }
                 }
 
             }

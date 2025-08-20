@@ -1,7 +1,7 @@
 package com.openwar.openwarwarzone.EventCrate;
 
-import com.openwar.openwarcore.Utils.LevelSaveAndLoadBDD;
-import com.openwar.openwarlevels.level.PlayerLevel;
+import com.openwar.openwarlevels.manager.PlayerLevel;
+import com.openwar.openwarlevels.manager.PlayerManager;
 import com.openwar.openwarwarzone.Main;
 import com.openwar.openwarwarzone.Utils.Tuple;
 import net.md_5.bungee.api.ChatMessageType;
@@ -28,7 +28,7 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.*;
 
 public class CrateEvent implements Listener{
-    private final LevelSaveAndLoadBDD pl;
+    private final PlayerManager pl;
     private final Map<Location, Inventory> crateInventory;
     private Map<Location, Long> crateTimers = new HashMap<>();
     private Map<Player, Integer> playerProgress = new HashMap<>();
@@ -41,7 +41,7 @@ public class CrateEvent implements Listener{
 
     List<Tuple<String, Integer, Integer>> crates = new ArrayList<>();
 
-    public CrateEvent(LevelSaveAndLoadBDD pl, Main main)  {
+    public CrateEvent(PlayerManager pl, Main main)  {
         this.pl = pl;
         this.crateInventory = new HashMap<>();
         this.main = main;
